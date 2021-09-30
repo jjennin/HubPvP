@@ -163,11 +163,17 @@ public class Listeners implements Listener {
     @EventHandler
     public void onSlotChange(PlayerItemHeldEvent e) {
         final Player p = e.getPlayer();
+        ItemStack previousHeld = e.getPlayer().getInventory().getItem(e.getPreviousSlot());
         ItemStack held = e.getPlayer().getInventory().getItem(e.getNewSlot());
         HubPvP plugin = HubPvP.getPlugin();
         if (!p.hasPermission("hubpvp.use"))
             return;
         
+        if((sword.isSimilar(previousHeld) || bow.isSimilar(previousHeld)) && (sword.isSimilar(held) || bow.isSimilar(held))) {
+        	p.sendMessage("previous same as held");
+        	return;
+        }
+
         if (held != null && (sword.isSimilar(held)
         		|| bow.isSimilar(held)) && !this.pvp.contains(p)) {
             if (Listeners.this.pvpTask.containsKey(p)) {
@@ -185,6 +191,7 @@ public class Listeners implements Listener {
                     int time = HubPvP.getPlugin().getConfig().getInt("enable-cooldown") + 1;
                     public void run() {
                         if(!sword.isSimilar(held) && !bow.isSimilar(held)) {
+                        	p.sendMessage("Cancelled PvP Enable");
                             this.cancel();
                         }
                         time--;
@@ -210,6 +217,7 @@ public class Listeners implements Listener {
                     int time = HubPvP.getPlugin().getConfig().getInt("disable-cooldown") + 1;
                     public void run() {
                         if(sword.isSimilar(held) || bow.isSimilar(held)) {
+                        	p.sendMessage("Cancelled PvP Disable");
                             this.cancel();
                         }
                         time--;
