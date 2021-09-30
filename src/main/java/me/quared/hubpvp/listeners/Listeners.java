@@ -3,6 +3,7 @@ package me.quared.hubpvp.listeners;
 import me.quared.hubpvp.HubPvP;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -30,11 +31,13 @@ public class Listeners implements Listener {
     public ArrayList<Player> pvp = new ArrayList<>();
     
     private ItemStack sword;
+    private ItemStack bow;
+    private ItemStack arrow;
     
     public Listeners() {
         sword = new ItemStack(Material.DIAMOND_SWORD);
         ItemMeta swordMeta = sword.getItemMeta();
-
+        
         try {
             swordMeta.spigot().setUnbreakable(true);
         } catch (NoSuchMethodError ignored) {
@@ -44,21 +47,47 @@ public class Listeners implements Listener {
             
             }
         }
-        swordMeta.setDisplayName(HubPvP.getPlugin().format(HubPvP.getPlugin().getConfig().getString("name")));
+        swordMeta.setDisplayName(HubPvP.getPlugin().format(HubPvP.getPlugin().getConfig().getString("sword-name")));
         swordMeta.setLore(Collections.singletonList(HubPvP.getPlugin().format("&7Hold to PvP!")));
         sword.setItemMeta(swordMeta);
+    
+        bow = new ItemStack(Material.BOW);
+        ItemMeta bowMeta = bow.getItemMeta();
+        
+        try {
+        	bowMeta.spigot().setUnbreakable(true);
+        } catch (NoSuchMethodError ignored) {
+            try {
+                ItemMeta.class.getMethod("setUnbreakable", Boolean.class).invoke(bowMeta, true);
+            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException ignored2) {
+            
+            }
+        }
+    	bowMeta.addEnchant(Enchantment.ARROW_INFINITE, 1, true);
+        bowMeta.setDisplayName(HubPvP.getPlugin().format(HubPvP.getPlugin().getConfig().getString("bow-name")));
+        bowMeta.setLore(Collections.singletonList(HubPvP.getPlugin().format("&7Hold to PvP!")));
+        bow.setItemMeta(bowMeta);
+        
+        
+        arrow = new ItemStack(Material.ARROW);
+    
     }
     
     @EventHandler(priority = EventPriority.LOW)
     public void onJoin(PlayerJoinEvent e) {
         Player p = e.getPlayer();
-        int slot = HubPvP.getPlugin().getConfig().getInt("slot");
+        int swordSlot = HubPvP.getPlugin().getConfig().getInt("sword-slot");
+        int bowSlot = HubPvP.getPlugin().getConfig().getInt("bow-slot");
+        int arrowSlot = HubPvP.getPlugin().getConfig().getInt("arrow-slot");
         p.getInventory().setArmorContents(new ItemStack[4]);
         p.getInventory().setHeldItemSlot(0);
         p.setMetadata("pvp", new FixedMetadataValue(HubPvP.getPlugin(), false));
 
-        if (p.hasPermission("huvpvp.use"))
-            p.getInventory().setItem(slot - 1, sword);
+        if (p.hasPermission("hubpvp.use")) {
+            p.getInventory().setItem(swordSlot - 1, sword);
+        	p.getInventory().setItem(bowSlot - 1, bow);
+        	p.getInventory().setItem(arrowSlot - 1, arrow);
+        }
     }
     
     @EventHandler
@@ -138,7 +167,9 @@ public class Listeners implements Listener {
         HubPvP plugin = HubPvP.getPlugin();
         if (!p.hasPermission("hubpvp.use"))
             return;
-        if (held != null && sword.isSimilar(held)) {
+        
+        if (held != null && (sword.isSimilar(held)
+        		|| bow.isSimilar(held)) && !this.pvp.contains(p)) {
             if (Listeners.this.pvpTask.containsKey(p)) {
                 Listeners.this.pvpTask.get(p).cancel();
                 Listeners.this.pvpTask.remove(p);
@@ -153,8 +184,11 @@ public class Listeners implements Listener {
                 this.pvpTask2.put(p, new BukkitRunnable() {
                     int time = HubPvP.getPlugin().getConfig().getInt("enable-cooldown") + 1;
                     public void run() {
+                        if(!sword.isSimilar(held) && !bow.isSimilar(held)) {
+                            this.cancel();
+                        }
                         time--;
-                        if (time == 0) {
+                        if (time <= 0) {
                             Listeners.this.pvpTask2.remove(p);
                             Listeners.this.setPvP(p, true);
                             this.cancel();
@@ -167,17 +201,6 @@ public class Listeners implements Listener {
             } else {
                 setPvP(p, true);
             }
-//            p.sendMessage(HubPvP.getPlugin().format(HubPvP.getPlugin().getConfig().getString("pvp-enabled-message")));
-//            if (this.pvpTask.containsKey(p))
-//                this.pvpTask.get(p).cancel();
-//            this.pvpTask.remove(p);
-//            this.pvpTime.put(p, HubPvP.getPlugin().getConfig().getInt("cooldown") + 1);
-//            this.pvp.add(p);
-//            p.getInventory().setHelmet(new ItemStack(Material.DIAMOND_HELMET));
-//            p.getInventory().setChestplate(new ItemStack(Material.DIAMOND_CHESTPLATE));
-//            p.getInventory().setLeggings(new ItemStack(Material.DIAMOND_LEGGINGS));
-//            p.getInventory().setBoots(new ItemStack(Material.DIAMOND_BOOTS));
-//            p.setMetadata("pvp", new FixedMetadataValue(HubPvP.getPlugin(), true));
         } else if (this.pvp.contains(p)) {
             if (pvpTask.containsKey(p)) {
                 return;
@@ -186,8 +209,11 @@ public class Listeners implements Listener {
                 this.pvpTask.put(p, new BukkitRunnable() {
                     int time = HubPvP.getPlugin().getConfig().getInt("disable-cooldown") + 1;
                     public void run() {
+                        if(sword.isSimilar(held) || bow.isSimilar(held)) {
+                            this.cancel();
+                        }
                         time--;
-                        if (time == 0) {
+                        if (time <= 0) {
                             Listeners.this.pvpTask.remove(p);
                             Listeners.this.setPvP(p, false);
                             this.cancel();
@@ -201,7 +227,7 @@ public class Listeners implements Listener {
             } else {
                 setPvP(p, false);
             }
-        } else if (pvpTask2.containsKey(p)) {
+        } else if (pvpTask2.containsKey(p) && !(sword.isSimilar(held) || bow.isSimilar(held) )) {
             pvpTask2.get(p).cancel();
             pvpTask2.remove(p);
             pvp.remove(p);
@@ -241,7 +267,11 @@ public class Listeners implements Listener {
         ItemStack item = e.getCurrentItem();
         if (item == null) return;
         if (item.getType().equals(Material.DIAMOND_SWORD) && item.hasItemMeta()
-                && ChatColor.stripColor(item.getItemMeta().getDisplayName()).equals(ChatColor.stripColor(HubPvP.getPlugin().format(HubPvP.getPlugin().getConfig().getString("name"))))) {
+                && ChatColor.stripColor(item.getItemMeta().getDisplayName()).equals(ChatColor.stripColor(HubPvP.getPlugin().format(HubPvP.getPlugin().getConfig().getString("sword-name"))))) {
+            e.setCancelled(true);
+        }
+        else if (item.getType().equals(Material.BOW) && item.hasItemMeta()
+                && ChatColor.stripColor(item.getItemMeta().getDisplayName()).equals(ChatColor.stripColor(HubPvP.getPlugin().format(HubPvP.getPlugin().getConfig().getString("bow-name"))))) {
             e.setCancelled(true);
         }
         
@@ -255,7 +285,12 @@ public class Listeners implements Listener {
         ItemStack item = e.getItemDrop().getItemStack();
         if (item.getType().equals(Material.DIAMOND_SWORD)
                 && item.hasItemMeta()
-                && ChatColor.stripColor(item.getItemMeta().getDisplayName()).equals(ChatColor.stripColor(HubPvP.getPlugin().getConfig().getString("name")))) {
+                && ChatColor.stripColor(item.getItemMeta().getDisplayName()).equals(ChatColor.stripColor(HubPvP.getPlugin().getConfig().getString("sword-name")))) {
+            e.setCancelled(true);
+        }
+        else if (item.getType().equals(Material.BOW)
+                && item.hasItemMeta()
+                && ChatColor.stripColor(item.getItemMeta().getDisplayName()).equals(ChatColor.stripColor(HubPvP.getPlugin().getConfig().getString("bow-name")))) {
             e.setCancelled(true);
         }
     }

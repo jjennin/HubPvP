@@ -2,10 +2,15 @@
 # Have an issue? Report it on our Spigot page!
 
 # Sword slot inside the player's inventory
-slot: 9
+sword-slot: 2
+bow-slot: 3
+arrow-slot: 36
 
 # PvP sword name
-name: '&a&l<&r&a PvP Sword&a&l >'
+sword-name: '&a&l<&r&a PvP Sword&a&l >'
+# PvP bow name
+bow-name: '&a&l<&r&a PvP Bow&a&l >'
+
 
 # Change the cooldown when enabling/disabling PvP (seconds). Set to -1 to disable.
 enable-cooldown: 3
